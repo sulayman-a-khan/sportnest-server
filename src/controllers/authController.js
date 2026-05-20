@@ -9,56 +9,52 @@ const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 /**
- * Validates password rules:
- * - Minimum 6 characters
- * - One uppercase letter
- * - One lowercase letter
+ * Validate password rules
  */
 const validatePassword = (password) => {
   if (!password || password.length < 6) return false;
-  const hasUpper = /[A-Z]/.test(password);
-  const hasLower = /[a-z]/.test(password);
-  return hasUpper && hasLower;
+  return /[A-Z]/.test(password) && /[a-z]/.test(password);
 };
 
 /**
- * POST /api/auth/register
- * Register a new user in the database
+ * REGISTER
  */
-const register = asyncWrapper(async (req, res, next) => {
+const register = asyncWrapper(async (req, res) => {
   const { name, email, password, photoUrl } = req.body;
 
   if (!name || !email || !password) {
-    return res.status(400).json({ success: false, message: 'Please provide all fields' });
-  }
-
-  // Password validation checks
-  if (!validatePassword(password)) {
     return res.status(400).json({
       success: false,
-      message: 'Password must be at least 6 characters, and contain at least one uppercase and one lowercase letter.',
+      message: 'Please provide all fields',
     });
   }
 
-  // Check unique email
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    return res.status(400).json({ success: false, message: 'Email is already registered' });
+  if (!validatePassword(password)) {
+    return res.status(400).json({
+      success: false,
+      message:
+        'Password must be 6+ chars with uppercase & lowercase letters',
+    });
   }
 
-  // Hash password using native pbkdf2 helper
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email already registered',
+    });
+  }
+
   const hashedPassword = hashPassword(password);
 
-  // Create user with optional photoUrl
   const user = await User.create({
     name,
     email,
     password: hashedPassword,
     photoUrl: photoUrl || '',
-    role: 'user', // Default role
+    role: 'user',
   });
 
-  // Generate JWT and set HTTP-only cookie
   const token = generateToken({ id: user._id, role: user.role });
   sendTokenCookie(res, token);
 
@@ -76,35 +72,33 @@ const register = asyncWrapper(async (req, res, next) => {
 });
 
 /**
- * POST /api/auth/login
- * Log in an existing user
+ * LOGIN
  */
-const login = asyncWrapper(async (req, res, next) => {
+const login = asyncWrapper(async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(400).json({ success: false, message: 'Please provide email and password' });
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide email and password',
+    });
   }
 
-  // Find user
   const user = await User.findOne({ email });
-  if (!user) {
-    return res.status(401).json({ success: false, message: 'Invalid credentials' });
+
+  if (!user || !verifyPassword(password, user.password)) {
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid credentials',
+    });
   }
 
-  // Verify PBKDF2 password hash
-  const isMatch = verifyPassword(password, user.password);
-  if (!isMatch) {
-    return res.status(401).json({ success: false, message: 'Invalid credentials' });
-  }
-
-  // Generate JWT and set HTTP-only cookie
   const token = generateToken({ id: user._id, role: user.role });
   sendTokenCookie(res, token);
 
   return res.status(200).json({
     success: true,
-    message: 'Logged in successfully',
+    message: 'Login successful',
     user: {
       id: user._id,
       name: user.name,
@@ -115,73 +109,78 @@ const login = asyncWrapper(async (req, res, next) => {
 });
 
 /**
- * POST /api/auth/logout
- * Log out user by clearing cookie
+ * LOGOUT
  */
-const logout = asyncWrapper(async (req, res, next) => {
+const logout = asyncWrapper(async (req, res) => {
   res.clearCookie('token', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
   });
 
-  return res.status(200).json({ success: true, message: 'Logged out successfully' });
+  return res.status(200).json({
+    success: true,
+    message: 'Logged out successfully',
+  });
 });
 
 /**
- * GET /api/auth/me
- * Persistent session recovery for loaded/reloaded states
+ * ME
  */
-const getMe = asyncWrapper(async (req, res, next) => {
+const getMe = asyncWrapper(async (req, res) => {
   if (!req.user) {
     return res.status(200).json({ success: false, user: null });
   }
 
   return res.status(200).json({
     success: true,
-    user: {
-      id: req.user._id,
-      name: req.user.name,
-      email: req.user.email,
-      photoUrl: req.user.photoUrl || '',
-      role: req.user.role,
-    },
+    user: req.user,
   });
 });
 
 /**
- * POST /api/auth/google
- * Log in or register a user via Google OAuth
+ * 🚀 GOOGLE LOGIN (FIXED VERSION)
  */
-const googleLogin = asyncWrapper(async (req, res, next) => {
-  const { idToken } = req.body;
+const googleLogin = asyncWrapper(async (req, res) => {
+  // ✅ FIX: accept "credential" instead of idToken
+  const { credential } = req.body;
 
-  if (!idToken) {
-    return res.status(400).json({ success: false, message: 'No Google token provided' });
+  if (!credential) {
+    return res.status(400).json({
+      success: false,
+      message: 'No Google token provided',
+    });
   }
 
   try {
-    // Verify token
+    // Verify Google token
     const ticket = await client.verifyIdToken({
-      idToken,
+      idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
 
     const payload = ticket.getPayload();
-    const { sub: googleId, email, name, picture: photoUrl } = payload;
+    const {
+      sub: googleId,
+      email,
+      name,
+      picture: photoUrl,
+    } = payload;
 
-    // Check if user exists by email or googleId
-    let user = await User.findOne({ $or: [{ email }, { googleId }] });
+    // Find user
+    let user = await User.findOne({
+      $or: [{ email }, { googleId }],
+    });
 
     if (user) {
-      // If user exists but doesn't have googleId attached yet (e.g. they registered via email first), attach it
       if (!user.googleId) {
         user.googleId = googleId;
-        if (!user.photoUrl && photoUrl) user.photoUrl = photoUrl;
+        if (!user.photoUrl && photoUrl) {
+          user.photoUrl = photoUrl;
+        }
         await user.save();
       }
     } else {
-      // Create new user without password
       user = await User.create({
         name,
         email,
@@ -191,13 +190,16 @@ const googleLogin = asyncWrapper(async (req, res, next) => {
       });
     }
 
-    // Generate JWT and set HTTP-only cookie
-    const token = generateToken({ id: user._id, role: user.role });
+    const token = generateToken({
+      id: user._id,
+      role: user.role,
+    });
+
     sendTokenCookie(res, token);
 
     return res.status(200).json({
       success: true,
-      message: 'Google Login successful',
+      message: 'Google login successful',
       user: {
         id: user._id,
         name: user.name,
@@ -208,7 +210,11 @@ const googleLogin = asyncWrapper(async (req, res, next) => {
     });
   } catch (err) {
     console.error('Google Auth Error:', err);
-    return res.status(401).json({ success: false, message: 'Invalid Google token or configuration.' });
+
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid Google token or configuration',
+    });
   }
 });
 
