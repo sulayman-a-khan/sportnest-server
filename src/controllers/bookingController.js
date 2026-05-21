@@ -42,16 +42,13 @@ const createBooking = asyncWrapper(async (req, res, next) => {
   // 2. Validate scheduling conflict (double-booking collision check)
   const existingCollision = await Booking.findOne({
     $or: [
-      { facility_id: targetFacilityId },
-      { facility: targetFacilityId }
+      { facility_id: targetFacilityId }
     ],
     $or: [
-      { booking_date: targetDate },
-      { date: targetDate }
+      { booking_date: targetDate }
     ],
     $or: [
-      { time_slot: targetSlot },
-      { timeSlot: targetSlot }
+      { time_slot: targetSlot }
     ],
     status: { $in: ['confirmed', 'pending'] }, // Check active confirmed or pending bookings
   });
@@ -130,10 +127,7 @@ const getOwnerBookings = asyncWrapper(async (req, res, next) => {
 
   // 2. Query bookings of those facilities
   const bookings = await Booking.find({
-    $or: [
-      { facility_id: { $in: facilityIds } },
-      { facility: { $in: facilityIds } }
-    ]
+    facility_id: { $in: facilityIds }
   })
   .populate('facility_id')
   .populate('user', 'name email')
