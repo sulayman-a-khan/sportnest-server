@@ -49,7 +49,7 @@ const facilitySchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
-  // Support high-fidelity UI components
+  // Support high-fidelity UI components and analytics
   rating: {
     type: Number,
     default: 4.5,
