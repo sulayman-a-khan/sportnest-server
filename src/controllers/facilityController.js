@@ -100,10 +100,10 @@ const createFacility = asyncWrapper(async (req, res, next) => {
   const targetType = facility_type || sport;
   const targetPrice = price_per_hour || price;
 
-  if (!name || !targetType || !location || !targetPrice || !img) {
+  if (!name || !targetType || !location || !targetPrice || !img || !description) {
     return res.status(400).json({
       success: false,
-      message: 'Please provide all required fields: name, facility_type, location, price_per_hour, img',
+      message: 'Please provide all required fields: name, facility_type, location, price_per_hour, img, description',
     });
   }
 
