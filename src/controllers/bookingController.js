@@ -67,20 +67,15 @@ const createBooking = asyncWrapper(async (req, res, next) => {
   const hourlyRate = facObj.price_per_hour || facObj.price;
   const totalPrice = hourlyRate * Number(targetHours);
 
-  // 4. Record booking (saving both new exact columns and backward-compat properties)
+  // 4. Record booking (strictly adhering to schema properties)
   const booking = await Booking.create({
     facility_id: targetFacilityId,
-    facility: targetFacilityId,
     user_email: req.user.email,
     user: req.user._id,
     booking_date: targetDate,
-    date: targetDate,
     time_slot: targetSlot,
-    timeSlot: targetSlot,
     hours: Number(targetHours),
-    duration: Number(targetHours),
     total_price: totalPrice,
-    totalPrice: totalPrice,
     status: 'pending', // Default is "pending" as required!
   });
 
