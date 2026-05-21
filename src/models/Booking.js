@@ -32,7 +32,7 @@ const bookingSchema = new mongoose.Schema({
     enum: ['pending', 'confirmed', 'cancelled'],
     default: 'pending',
   },
-  // Support UI relationships and user details
+  // Support UI relationships, user details and front-end
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
