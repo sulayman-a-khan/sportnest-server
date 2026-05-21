@@ -44,7 +44,9 @@ const getAllFacilities = asyncWrapper(async (req, res, next) => {
     mongoQuery.rating = { $gte: Number(rating) };
   }
 
-  const facilities = await Facility.find(mongoQuery).populate('owner', 'name email');
+  const facilities = await Facility.find(mongoQuery)
+    .populate('owner', 'name email')
+    .sort({ booking_count: -1 });
 
   return res.status(200).json({
     success: true,

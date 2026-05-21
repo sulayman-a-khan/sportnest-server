@@ -76,9 +76,8 @@ const createBooking = asyncWrapper(async (req, res, next) => {
     status: 'pending', // Default is "pending" as required!
   });
 
-  // 5. Increment facility booking_count
-  facObj.booking_count = (facObj.booking_count || 0) + 1;
-  await facObj.save();
+  // 5. Increment facility booking_count using $inc
+  await Facility.updateOne({ _id: facObj._id }, { $inc: { booking_count: 1 } });
 
   const populated = await booking.populate('facility_id');
 
@@ -195,8 +194,10 @@ const cancelBooking = asyncWrapper(async (req, res, next) => {
   if (activeFac && typeof activeFac.save === 'function') {
     console.log('📉 Decrementing facility booking count...');
     try {
-      activeFac.booking_count = Math.max(0, (activeFac.booking_count || 0) - 1);
-      await activeFac.save();
+      await Facility.updateOne(
+        { _id: activeFac._id, booking_count: { $gt: 0 } },
+        { $inc: { booking_count: -1 } }
+      );
       console.log('✅ Facility booking count decremented.');
     } catch (facSaveErr) {
       console.error('💥 Error saving facility:', facSaveErr);
