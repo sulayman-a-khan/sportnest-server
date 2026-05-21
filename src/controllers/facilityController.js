@@ -66,9 +66,9 @@ const getFacilityById = asyncWrapper(async (req, res, next) => {
 
   const Booking = require('../models/Booking');
   const bookings = await Booking.find({
-    $or: [{ facility_id: facility._id }, { facility: facility._id }],
+    facility_id: facility._id,
     status: { $in: ['pending', 'confirmed'] }
-  }).select('booking_date date time_slot timeSlot hours duration status');
+  }).select('booking_date time_slot hours status');
 
   return res.status(200).json({
     success: true,
