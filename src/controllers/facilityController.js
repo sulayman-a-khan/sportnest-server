@@ -55,7 +55,7 @@ const getAllFacilities = asyncWrapper(async (req, res, next) => {
 
 /**
  * GET /api/facilities/:id
- * Retrieve details of a single facility
+ * Retrieve details of a single facility along with its active bookings
  */
 const getFacilityById = asyncWrapper(async (req, res, next) => {
   const facility = await Facility.findById(req.params.id).populate('owner', 'name email');
@@ -64,9 +64,16 @@ const getFacilityById = asyncWrapper(async (req, res, next) => {
     return res.status(404).json({ success: false, message: 'Facility not found' });
   }
 
+  const Booking = require('../models/Booking');
+  const bookings = await Booking.find({
+    $or: [{ facility_id: facility._id }, { facility: facility._id }],
+    status: { $in: ['pending', 'confirmed'] }
+  }).select('booking_date date time_slot timeSlot hours duration status');
+
   return res.status(200).json({
     success: true,
     data: facility,
+    bookings,
   });
 });
 
