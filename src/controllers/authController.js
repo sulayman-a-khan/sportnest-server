@@ -55,18 +55,14 @@ const register = asyncWrapper(async (req, res) => {
     role: 'user',
   });
 
-  const token = generateToken({ id: user._id, role: user.role });
-  sendTokenCookie(res, token);
+  // STRICT REGISTRATION FLOW: Do not auto-login or create session
+  // Only create the account in the database
 
   return res.status(201).json({
     success: true,
-    message: 'Registration successful',
+    message: 'Registration successful. Please log in.',
     user: {
-      id: user._id,
-      name: user.name,
       email: user.email,
-      photoUrl: user.photoUrl,
-      role: user.role,
     },
   });
 });
