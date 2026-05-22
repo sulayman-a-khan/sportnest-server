@@ -41,15 +41,9 @@ const createBooking = asyncWrapper(async (req, res, next) => {
 
   // 2. Validate scheduling conflict (double-booking collision check)
   const existingCollision = await Booking.findOne({
-    $or: [
-      { facility_id: targetFacilityId }
-    ],
-    $or: [
-      { booking_date: targetDate }
-    ],
-    $or: [
-      { time_slot: targetSlot }
-    ],
+    facility_id: targetFacilityId,
+    booking_date: targetDate,
+    time_slot: targetSlot,
     status: { $in: ['confirmed', 'pending'] }, // Check active confirmed or pending bookings
   });
 
