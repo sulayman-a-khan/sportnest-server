@@ -51,14 +51,13 @@ app.use((_req, res) => {
 // ── Centralised error handler (MUST be last middleware) ───
 app.use(errorHandler);
 
-// ── Start server FIRST, then connect DB ───────────────────
-// The server starts listening immediately so the health-check
-// endpoint always responds — even if MongoDB is still connecting.
-app.listen(PORT, () => {
-  console.log(`\n🚀  SportNest Server running on http://localhost:${PORT}`);
-  console.log(`📡  API base:  http://localhost:${PORT}/api`);
-  console.log(`❤️   Health:   http://localhost:${PORT}/api/health\n`);
+// ── Connect DB FIRST, then start server ───────────────────
+// This prevents Mongoose from buffering the first API request
+// and causing a slow initial page load.
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`\n🚀  SportNest Server running on http://localhost:${PORT}`);
+    console.log(`📡  API base:  http://localhost:${PORT}/api`);
+    console.log(`❤️   Health:   http://localhost:${PORT}/api/health\n`);
+  });
 });
-
-// Connect DB after server is up (non-blocking startup)
-connectDB();
